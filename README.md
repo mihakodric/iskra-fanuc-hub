@@ -40,7 +40,7 @@ Payload:
 {
   "machine_id": "lathe_03",
   "path": 1,
-  "ip": "10.150.7.28",
+  "ip": "10.151.32.81",
   "event": "tool_change",
   "tool_previous": 12,
   "tool_current": 5,
@@ -59,7 +59,7 @@ Payload:
 {
   "machine_id": "lathe_03",
   "path": 1,
-  "ip": "10.150.7.28",
+  "ip": "10.151.32.81",
   "error": "Failed to read macro: FOCAS return code -1",
   "ts_unix_ms": 1730000000000,
   "source": "rpi4-monitor"
@@ -75,7 +75,7 @@ Payload:
 ```json
 {
   "machine_id": "lathe_03",
-  "ip": "10.150.7.28",
+  "ip": "10.151.32.81",
   "connected": true,
   "path1_status": "ok",
   "path2_status": "error",
@@ -92,6 +92,45 @@ Payload:
 - Python 3.11+
 - FANUC FOCAS library (`libfwlib32.so`) installed at `/usr/local/lib/` (production mode only)
 - MQTT broker (e.g., Mosquitto)
+
+### Installing FOCAS Library (Production Only)
+
+For production mode, you need the FANUC FOCAS library. You can install it from the community repository:
+
+1. **Download the library**
+   ```bash
+   # Clone the fwlib repository
+   git clone https://github.com/strangesast/fwlib.git
+   cd fwlib
+   ```
+
+2. **Install the library**
+   ```bash
+   # For x86 32-bit systems
+   sudo cp libfwlib32-linux-x86.so.1.0.5 /usr/local/lib/libfwlib32.so
+   
+   # OR for x86_64 64-bit systems (like Raspberry Pi 4 64-bit)
+   sudo cp libfwlib32-linux-x64.so.1.0.5 /usr/local/lib/libfwlib32.so
+   
+   # OR for ARM systems (like Raspberry Pi 32-bit)
+   sudo cp libfwlib32-linux-armv7.so.1.0.5 /usr/local/lib/libfwlib32.so
+   
+   # Update library cache
+   sudo ldconfig
+   ```
+
+3. **Verify installation**
+   ```bash
+   ls -l /usr/local/lib/libfwlib*.so
+   ```
+
+4. **Update config.yaml if using non-default path**
+   ```yaml
+   focas:
+     library_path: "/usr/local/lib/libfwlib32.so"
+   ```
+
+**Note:** The library from this repository is reverse-engineered and may not support all FOCAS functions. For production use, consider obtaining the official FANUC FOCAS library if available.
 
 ### Setup
 
@@ -142,7 +181,7 @@ See `config.yaml.example` for full configuration options.
 ```yaml
 machines:
   - machine_id: "lathe_03"      # Simple identifier
-    ip: "10.150.7.28"            # CNC IP address
+    ip: "10.151.32.81"            # CNC IP address
     port: 8193                   # FOCAS port (default: 8193)
     poll_interval_ms: 100        # Optional: override default
     monitored_paths:
@@ -261,7 +300,7 @@ nano config.yaml
 
 ### Connection Failures
 
-- Verify CNC IP addresses and network connectivity: `ping 10.150.7.28`
+- Verify CNC IP addresses and network connectivity: `ping 10.151.32.81`
 - Check FOCAS port (default 8193) is open on CNC
 - Review logs for specific error codes
 - Verify CNC is powered on and FOCAS server is running

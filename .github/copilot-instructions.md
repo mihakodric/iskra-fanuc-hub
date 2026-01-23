@@ -84,7 +84,7 @@ Tool change payload:
 {
   "machine_id": "lathe_03",
   "path": 1,
-  "ip": "10.150.7.28",
+  "ip": "10.151.32.81",
   "event": "tool_change",
   "tool_previous": 12,
   "tool_current": 5,
@@ -98,7 +98,7 @@ Error event payload:
 {
   "machine_id": "lathe_03",
   "path": 1,
-  "ip": "10.150.7.28",
+  "ip": "10.151.32.81",
   "error": "Failed to read macro: FOCAS return code -1",
   "ts_unix_ms": 1730000000000,
   "source": "rpi4-monitor"
@@ -109,7 +109,7 @@ Heartbeat/state payload (every 2 seconds):
 ```json
 {
   "machine_id": "lathe_03",
-  "ip": "10.150.7.28",
+  "ip": "10.151.32.81",
   "connected": true,
   "path1_status": "ok",
   "path2_status": "error",
@@ -288,7 +288,7 @@ monitoring:
 
 machines:
   - machine_id: "lathe_03"
-    ip: "10.150.7.28"
+    ip: "10.151.32.81"
     port: 8193
     poll_interval_ms: 100  # Optional override
     monitored_paths:

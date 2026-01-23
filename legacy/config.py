@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     use_mock_daq: bool = True  # Auto-detect if False
     
     # Hardware - Fanuc
-    fanuc_ip: str = "10.150.7.28"
+    fanuc_ip: str = "10.151.32.81"
     fanuc_port: int = 8193
     fanuc_timeout: int = 5000
     use_mock_fanuc: bool = True  # Auto-detect if False

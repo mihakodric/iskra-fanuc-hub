@@ -116,7 +116,7 @@ monitoring:
 
 machines:
   - machine_id: "lathe_03"
-    ip: "10.150.7.28"
+    ip: "10.151.32.81"
     port: 8193
     monitored_paths:
       - path: 1

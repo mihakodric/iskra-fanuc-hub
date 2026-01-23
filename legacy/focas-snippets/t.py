@@ -3,7 +3,7 @@ import time
 
 class Main(object):      
     def __init__(self):
-        self.stroj11 = Focas("10.150.7.28")  #ip stroja
+        self.stroj11 = Focas("10.151.32.81")  #ip stroja
 
          
     def main(self):
