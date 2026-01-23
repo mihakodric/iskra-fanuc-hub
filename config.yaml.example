@@ -1,0 +1,53 @@
+# FANUC CNC Monitor Configuration
+
+# Environment mode: 'development' (uses fake client) or 'production' (uses real FOCAS)
+env: development
+
+# FOCAS library configuration (production mode only)
+focas:
+  library_path: "/usr/local/lib/libfwlib32.so"
+  macro_address: 4120  # Default macro address for tool number (same for all paths)
+  macro_length: 10     # Always 10 (hardcoded in FOCAS calls)
+
+# MQTT broker configuration
+mqtt:
+  host: "192.168.0.10"  # MQTT broker IP address
+  port: 1883
+  username: ""           # Leave empty for anonymous access
+  password: ""
+  tls: false            # Set to true for TLS/SSL connection
+
+# Monitoring behavior configuration
+monitoring:
+  poll_interval_ms_default: 100        # Default polling interval (milliseconds)
+  debounce_consecutive_reads: 2        # Number of consecutive reads to confirm tool change
+  heartbeat_interval_s: 2              # Heartbeat publish interval (seconds)
+  reconnect_min_delay_s: 0.5           # Minimum reconnection delay (seconds)
+  reconnect_max_delay_s: 30.0          # Maximum reconnection delay (seconds)
+
+# Monitored CNC machines
+machines:
+  # Example: Dual-path lathe
+  - machine_id: "lathe_03"
+    ip: "10.150.7.28"
+    port: 8193
+    poll_interval_ms: 100  # Optional: override default poll interval
+    monitored_paths:
+      - path: 1            # Monitor path 1
+      - path: 2            # Monitor path 2
+  
+  # Example: Single-path mill
+  - machine_id: "mill_01"
+    ip: "10.150.8.15"
+    port: 8193
+    monitored_paths:
+      - path: 1            # Monitor only path 1
+  
+  # Example: Another machine with custom poll interval
+  - machine_id: "lathe_07"
+    ip: "10.150.7.30"
+    port: 8193
+    poll_interval_ms: 150  # Slower polling for this machine
+    monitored_paths:
+      - path: 1
+      - path: 2
