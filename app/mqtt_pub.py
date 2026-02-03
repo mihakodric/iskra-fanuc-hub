@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from typing import Dict, Any, Optional
-from asyncio_mqtt import Client, MqttError
+import aiomqtt
 import time
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class MQTTPublisher:
         self.password = password if password else None
         self.tls = tls
         
-        self._client: Optional[Client] = None
+        self._client: Optional[aiomqtt.Client] = None
         self._connected = False
         self._reconnect_task: Optional[asyncio.Task] = None
         self._running = False
@@ -69,13 +69,18 @@ class MQTTPublisher:
                 # Create client
                 logger.info(f"Connecting to MQTT broker {self.host}:{self.port}...")
                 
-                self._client = Client(
-                    hostname=self.host,
-                    port=self.port,
-                    username=self.username,
-                    password=self.password,
-                    tls_context=None  # TODO: Add TLS support if needed
-                )
+                # Build client kwargs
+                client_kwargs = {
+                    "hostname": self.host,
+                    "port": self.port,
+                }
+                
+                if self.username:
+                    client_kwargs["username"] = self.username
+                if self.password:
+                    client_kwargs["password"] = self.password
+                
+                self._client = aiomqtt.Client(**client_kwargs)
                 
                 await self._client.__aenter__()
                 self._connected = True
@@ -86,7 +91,7 @@ class MQTTPublisher:
                 while self._running and self._connected:
                     await asyncio.sleep(1)
                 
-            except MqttError as e:
+            except aiomqtt.MqttError as e:
                 self._connected = False
                 logger.error(f"MQTT connection error: {e}")
                 

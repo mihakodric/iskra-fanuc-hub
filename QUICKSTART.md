@@ -1,19 +1,42 @@
 # Quick Start Guide
 
-## 1. Install Dependencies
+## 1. Install Mosquitto MQTT Broker
+
+Install and start the MQTT broker:
+
+```bash
+# Install Mosquitto
+sudo apt update
+sudo apt install mosquitto mosquitto-clients -y
+
+# Enable and start the service
+sudo systemctl enable mosquitto
+sudo systemctl start mosquitto
+
+# Verify it's running
+sudo systemctl status mosquitto
+```
+
+## 2. Install Python Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 2. Create Configuration
+## 3. Create Configuration
 
 ```bash
 cp config.yaml.example config.yaml
 nano config.yaml  # Edit with your settings
 ```
 
-## 3. Run in Development Mode
+If running locally, update MQTT host to `localhost`:
+```yaml
+mqtt:
+  host: "localhost"  # or "127.0.0.1"
+```
+
+## 4. Run in Development Mode
 
 The service will use simulated FANUC clients (no hardware needed):
 
@@ -27,19 +50,16 @@ Or with explicit config path:
 python -m app.main config.yaml
 ```
 
-## 4. Test with MQTT
+## 5. Test with MQTT
 
 Subscribe to all events:
 
 ```bash
-# Install mosquitto clients if needed
-sudo apt-get install mosquitto-clients
-
-# Subscribe to all topics
-mosquitto_sub -h 192.168.0.10 -t 'fanuc/#' -v
+# Subscribe to all topics (use localhost if broker is local)
+mosquitto_sub -h localhost -t 'fanuc/#' -v
 ```
 
-## 5. Switch to Production Mode
+## 6. Switch to Production Mode
 
 Edit `config.yaml`:
 
@@ -59,7 +79,7 @@ Run:
 python run.py
 ```
 
-## 6. Install as Systemd Service
+## 7. Install as Systemd Service
 
 ```bash
 sudo cp systemd/fanuc-monitor.service /etc/systemd/system/

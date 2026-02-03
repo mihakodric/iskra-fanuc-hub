@@ -93,6 +93,60 @@ Payload:
 - FANUC FOCAS library (`libfwlib32.so`) installed at `/usr/local/lib/` (production mode only)
 - MQTT broker (e.g., Mosquitto)
 
+### Installing Mosquitto MQTT Broker
+
+The service requires an MQTT broker to publish tool change events. Install Mosquitto on your Raspberry Pi:
+
+```bash
+# Update package list
+sudo apt update
+
+# Install Mosquitto broker and clients
+sudo apt install mosquitto mosquitto-clients -y
+
+# Enable Mosquitto to start on boot
+sudo systemctl enable mosquitto
+
+# Start Mosquitto service
+sudo systemctl start mosquitto
+
+# Verify it's running
+sudo systemctl status mosquitto
+```
+
+**Configure Mosquitto** (optional - default settings work for local testing):
+
+```bash
+# Edit configuration if needed
+sudo nano /etc/mosquitto/mosquitto.conf
+```
+
+For anonymous access (suitable for local LAN), add:
+```
+listener 1883 0.0.0.0
+allow_anonymous true
+```
+
+Restart after config changes:
+```bash
+sudo systemctl restart mosquitto
+```
+
+**Test the broker:**
+```bash
+# Subscribe to test topic (in one terminal)
+mosquitto_sub -h localhost -t 'test' -v
+
+# Publish test message (in another terminal)
+mosquitto_pub -h localhost -t 'test' -m 'Hello MQTT'
+```
+
+**Configure firewall** (if needed for RPi5 access):
+```bash
+# Allow MQTT port through firewall
+sudo ufw allow 1883/tcp
+```
+
 ### Installing FOCAS Library (Production Only)
 
 For production mode, you need the FANUC FOCAS library. You can install it from the community repository:
