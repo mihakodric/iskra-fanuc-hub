@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/iskra-fanuc-hub
-Environment="PATH=/home/pi/iskra-fanuc-hub/venv/bin"
-ExecStart=/home/pi/iskra-fanuc-hub/venv/bin/python -m app.main /home/pi/iskra-fanuc-hub/config.yaml
+User=admin
+WorkingDirectory=/home/admin/iskra-fanuc-hub
+Environment="PATH=/home/admin/iskra-fanuc-hub/venv/bin"
+ExecStart=/home/admin/iskra-fanuc-hub/venv/bin/python -m app.main /home/admin/iskra-fanuc-hub/config.yaml
 Restart=always
 RestartSec=10
 StandardOutput=journal
