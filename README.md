@@ -45,7 +45,7 @@ Payload:
   "tool_previous": 12,
   "tool_current": 5,
   "ts_unix_ms": 1730000000000,
-  "source": "rpi4-monitor"
+  "source": "100.113.52.109"
 }
 ```
 
@@ -62,7 +62,7 @@ Payload:
   "ip": "10.151.32.81",
   "error": "Failed to read macro: FOCAS return code -1",
   "ts_unix_ms": 1730000000000,
-  "source": "rpi4-monitor"
+  "source": "100.113.52.109"
 }
 ```
 
@@ -81,7 +81,7 @@ Payload:
   "path2_status": "error",
   "path2_error": "FOCAS error code: -1",
   "ts_unix_ms": 1730000000000,
-  "source": "rpi4-monitor"
+  "source": "100.113.52.109"
 }
 ```
 
@@ -224,6 +224,7 @@ See `config.yaml.example` for full configuration options.
 ### Key Settings
 
 - `env`: `development` (fake client) or `production` (real FOCAS)
+- `service.ip`: IP address of the machine running this service (used in MQTT payload "source" field)
 - `focas.library_path`: Path to FOCAS library (default: `/usr/local/lib/libfwlib32.so`)
 - `focas.macro_address`: Macro variable for tool number (default: 4120)
 - `mqtt.host`: MQTT broker IP address

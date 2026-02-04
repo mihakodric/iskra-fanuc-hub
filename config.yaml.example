@@ -3,6 +3,10 @@
 # Environment mode: 'development' (uses fake client) or 'production' (uses real FOCAS)
 env: development
 
+# Service identification
+service:
+  ip: "100.113.52.109"  # IP address of the machine running this service
+
 # FOCAS library configuration (production mode only)
 focas:
   library_path: "/usr/local/lib/libfwlib32.so"

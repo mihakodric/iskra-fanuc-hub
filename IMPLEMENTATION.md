@@ -49,9 +49,9 @@ iskra-fanuc-hub/
 - `fanuc/<machine_id>/state` (QoS 0, every 2s)
 
 **Payloads include:**
-- Tool change: machine_id, path, ip, tool_previous, tool_current, timestamp
-- Error: machine_id, path, ip, error message, timestamp
-- Heartbeat: machine_id, ip, connected, path statuses, timestamp
+- Tool change: machine_id, path, ip, tool_previous, tool_current, timestamp, source (service IP)
+- Error: machine_id, path, ip, error message, timestamp, source (service IP)
+- Heartbeat: machine_id, ip, connected, path statuses, timestamp, source (service IP)
 
 ### ✅ Reliability
 - Exponential backoff reconnection (CNC & MQTT)
@@ -94,6 +94,9 @@ iskra-fanuc-hub/
 
 ```yaml
 env: development  # or production
+
+service:
+  ip: "100.113.52.109"  # IP address of the machine running this service
 
 focas:
   library_path: "/usr/local/lib/libfwlib32.so"

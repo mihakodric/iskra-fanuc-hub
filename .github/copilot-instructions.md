@@ -89,7 +89,7 @@ Tool change payload:
   "tool_previous": 12,
   "tool_current": 5,
   "ts_unix_ms": 1730000000000,
-  "source": "rpi4-monitor"
+  "source": "100.113.52.109"
 }
 ```
 
@@ -101,7 +101,7 @@ Error event payload:
   "ip": "10.151.32.81",
   "error": "Failed to read macro: FOCAS return code -1",
   "ts_unix_ms": 1730000000000,
-  "source": "rpi4-monitor"
+  "source": "100.113.52.109"
 }
 ```
 
@@ -115,7 +115,7 @@ Heartbeat/state payload (every 2 seconds):
   "path2_status": "error",
   "path2_error": "FOCAS error code: -1",
   "ts_unix_ms": 1730000000000,
-  "source": "rpi4-monitor"
+  "source": "100.113.52.109"
 }
 ```
 
@@ -267,6 +267,9 @@ Use YAML config structured like this:
 ```yaml
 env: production  # or development
 
+service:
+  ip: "100.113.52.109"  # IP address of the machine running this service
+
 focas:
   library_path: "/usr/local/lib/libfwlib32.so"
   macro_address: 4120  # Default for all machines (configurable globally)
@@ -303,6 +306,7 @@ machines:
 ```
 
 **Key notes:**
+- service.ip is used in MQTT payload "source" field to identify which machine sent the message
 - macro_address 4120 is the same for all paths (accessed via cnc_setpath)
 - Use monitored_paths array format even for single-path machines
 - Machine IDs use simple format: "lathe_03", "mill_01"

@@ -56,7 +56,8 @@ class MonitorService:
             port=self.config.mqtt.port,
             username=self.config.mqtt.username,
             password=self.config.mqtt.password,
-            tls=self.config.mqtt.tls
+            tls=self.config.mqtt.tls,
+            service_ip=self.config.service.ip
         )
         await self.mqtt_publisher.start()
         

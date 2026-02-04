@@ -19,13 +19,15 @@ class MQTTPublisher:
         port: int = 1883,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        tls: bool = False
+        tls: bool = False,
+        service_ip: Optional[str] = None
     ):
         self.host = host
         self.port = port
         self.username = username if username else None
         self.password = password if password else None
         self.tls = tls
+        self.service_ip = service_ip if service_ip else "unknown"
         
         self._client: Optional[aiomqtt.Client] = None
         self._connected = False
@@ -139,7 +141,7 @@ class MQTTPublisher:
             "tool_previous": tool_previous,
             "tool_current": tool_current,
             "ts_unix_ms": int(time.time() * 1000),
-            "source": "rpi4-monitor"
+            "source": self.service_ip
         }
         
         return await self._publish(topic, payload, qos=1)
@@ -171,7 +173,7 @@ class MQTTPublisher:
             "ip": ip,
             "error": error_message,
             "ts_unix_ms": int(time.time() * 1000),
-            "source": "rpi4-monitor"
+            "source": self.service_ip
         }
         
         return await self._publish(topic, payload, qos=1)
@@ -204,7 +206,7 @@ class MQTTPublisher:
             "ip": ip,
             "connected": connected,
             "ts_unix_ms": int(time.time() * 1000),
-            "source": "rpi4-monitor"
+            "source": self.service_ip
         }
         
         # Add path status

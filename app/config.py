@@ -41,6 +41,17 @@ class MachineConfig:
 
 
 @dataclass
+class ServiceConfig:
+    """Service identification configuration"""
+    ip: str
+    
+    def __post_init__(self):
+        """Validate service config"""
+        if not self.ip:
+            raise ValueError("Service IP is required")
+
+
+@dataclass
 class FOCASConfig:
     """FOCAS library configuration"""
     library_path: str = "/usr/local/lib/libfwlib32.so"
@@ -77,6 +88,7 @@ class MonitoringConfig:
 class Config:
     """Complete application configuration"""
     env: str
+    service: ServiceConfig
     focas: FOCASConfig
     mqtt: MQTTConfig
     monitoring: MonitoringConfig
@@ -128,6 +140,12 @@ def load_config(config_path: str = "config.yaml") -> Config:
     
     # Parse configuration with defaults
     try:
+        # Parse service config
+        service_data = data.get('service', {})
+        if not service_data:
+            raise ValueError("service section is required in config")
+        service_config = ServiceConfig(**service_data)
+        
         # Parse FOCAS config
         focas_data = data.get('focas', {})
         focas_config = FOCASConfig(
@@ -171,6 +189,7 @@ def load_config(config_path: str = "config.yaml") -> Config:
         # Create complete config
         config = Config(
             env=data.get('env', 'development'),
+            service=service_config,
             focas=focas_config,
             mqtt=mqtt_config,
             monitoring=monitoring_config,
