@@ -121,6 +121,12 @@ sudo systemctl status mosquitto
 sudo nano /etc/mosquitto/mosquitto.conf
 ```
 
+Also here:
+```bash
+# Edit configuration if needed
+sudo nano /etc/mosquitto/conf.d/default.conf
+```
+
 For anonymous access (suitable for local LAN), add:
 ```
 listener 1883 0.0.0.0
