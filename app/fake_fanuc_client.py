@@ -73,7 +73,7 @@ class FakeFanucClient(FanucClient):
         if random.random() < 0.05:
             old_tool = self._current_tools[path]
             # Change to a different tool
-            new_tool = random.choice([t for t in range(1, 20) if t != old_tool])
+            new_tool = random.choice([t for t in [2000, 2100, 2220, 2400] if t != old_tool])
             self._current_tools[path] = new_tool
             logger.debug(f"[{self.machine_id}] Simulated tool change path {path}: {old_tool} -> {new_tool}")
         
