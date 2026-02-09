@@ -97,61 +97,111 @@ Payload:
 
 The service requires an MQTT broker to publish tool change events. Install Mosquitto on your Raspberry Pi:
 
+Update package list:
 ```bash
-# Update package list
 sudo apt update
+```
 
-# Install Mosquitto broker and clients
+Install Mosquitto broker and clients:
+```bash
 sudo apt install mosquitto mosquitto-clients -y
+```
 
-# Enable Mosquitto to start on boot
+Enable Mosquitto to start on boot:
+```bash
 sudo systemctl enable mosquitto
+```
 
-# Start Mosquitto service
+Start Mosquitto service:
+```bash
 sudo systemctl start mosquitto
+```
 
-# Verify it's running
+Verify it's running:
+```bash
 sudo systemctl status mosquitto
 ```
 
-**Configure Mosquitto** (optional - default settings work for local testing):
 
+### Configuring Mosquitto
+
+IMPORTANT:
+Mosquitto loads /etc/mosquitto/mosquitto.conf AND all files in /etc/mosquitto/conf.d/.
+Do NOT define the same listener in more than one file, or Mosquitto will fail to start.
+
+Recommended pattern:
+- Keep /etc/mosquitto/mosquitto.conf minimal
+- Define listeners and access control in ONE file under conf.d
+
+
+Step 1: Main config
+Edit the main configuration file:
 ```bash
-# Edit configuration if needed
 sudo nano /etc/mosquitto/mosquitto.conf
 ```
 
-Also here:
+Ensure it contains general settings and ONLY this include line:
+include_dir /etc/mosquitto/conf.d
+
+Remove any listener or allow_anonymous entries from this file if present.
+
+
+Step 2: Listener configuration (LAN / local testing)
+Edit (or create) the default configuration file:
 ```bash
-# Edit configuration if needed
 sudo nano /etc/mosquitto/conf.d/default.conf
 ```
 
-For anonymous access (suitable for local LAN), add:
-```
+For anonymous access on a local LAN, add:
+```bash
 listener 1883 0.0.0.0
 allow_anonymous true
 ```
 
-Restart after config changes:
+NOTE:
+This is suitable for local testing only.
+For production or Tailscale-exposed setups, use authentication.
+
+
+Step 3: Restart Mosquitto
+
+Apply configuration changes:
 ```bash
 sudo systemctl restart mosquitto
+sudo systemctl status mosquitto
 ```
 
-**Test the broker:**
+If Mosquitto fails to start, inspect logs:
 ```bash
-# Subscribe to test topic (in one terminal)
-mosquitto_sub -h localhost -t 'test' -v
-
-# Publish test message (in another terminal)
-mosquitto_pub -h localhost -t 'test' -m 'Hello MQTT'
+sudo journalctl -u mosquitto -b --no-pager
 ```
 
-**Configure firewall** (if needed for RPi5 access):
+
+### Test the broker
+
+Subscribe to a test topic (in one terminal):
 ```bash
-# Allow MQTT port through firewall
+mosquitto_sub -h localhost -t test -v
+```
+
+Publish a test message (in another terminal):
+```bash
+mosquitto_pub -h localhost -t test -m "Hello MQTT"
+```
+
+
+### Configure firewall (if needed)
+
+If a firewall is enabled and remote access is required:
+```bash
 sudo ufw allow 1883/tcp
 ```
+
+
+NOTE:
+Defining listener 1883 in more than one Mosquitto configuration file will cause the broker to fail at startup due to a port binding conflict.
+Always define a listener in exactly one configuration file.
+
 
 ### Installing FOCAS Library (Production Only)
 
