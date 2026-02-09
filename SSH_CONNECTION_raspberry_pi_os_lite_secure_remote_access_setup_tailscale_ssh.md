@@ -195,5 +195,3 @@ tailscale ping raspberrypi
 - If hostname fails, use Tailscale IP
 
 ---
-
-## End of Do
