@@ -15,7 +15,7 @@ focas:
 
 # MQTT broker configuration
 mqtt:
-  host: "192.168.0.10"  # MQTT broker IP address
+  host: "localhost"  # MQTT broker IP address
   port: 1883
   username: ""           # Leave empty for anonymous access
   password: ""
