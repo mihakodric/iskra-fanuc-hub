@@ -118,3 +118,29 @@ sudo journalctl -u fanuc-monitor -f
 - Check FOCAS library path
 - Review logs for FOCAS errors
 - Verify macro address (default 4120)
+
+
+
+# Setting up Static IP on company network
+Check current network connections:
+```bash
+  nmcli con show
+```
+
+Identify the active connection (e.g., "Wired connection 1") and set a static IP:
+```bash
+  sudo nmcli con mod "Wired connection 1" \
+  ipv4.addresses 10.151.32.81/20 \
+  ipv4.gateway 10.151.32.1 \
+  ipv4.dns "172.16.0.20 172.16.0.21" \
+  ipv4.method manual
+```
+Restart the network connection:
+```bash
+  sudo nmcli con down "Wired connection 1" && sudo nmcli con up "Wired connection 1"
+```
+
+Verify the new IP address:
+```bash
+  ip addr show
+```
