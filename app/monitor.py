@@ -70,20 +70,18 @@ class MachineMonitor:
         if self._running:
             logger.warning(f"[{self.machine_id}] Monitor already running")
             return
-        
+
         self._running = True
-        
+
         # Start connection manager
         self._tasks.append(asyncio.create_task(self._connection_manager()))
-        
+
         # Start heartbeat
         self._tasks.append(asyncio.create_task(self._heartbeat_loop()))
-        
-        # Start monitor for each path
-        for path in self.monitored_paths:
-            task = asyncio.create_task(self._monitor_path(path))
-            self._tasks.append(task)
-        
+
+        # Start single polling loop for all paths (legacy-compatible)
+        self._tasks.append(asyncio.create_task(self._poll_all_paths_loop()))
+
         logger.info(f"[{self.machine_id}] Monitor started")
     
     async def stop(self) -> None:
@@ -134,48 +132,51 @@ class MachineMonitor:
                 logger.error(f"[{self.machine_id}] Connection manager error: {e}")
                 await asyncio.sleep(1.0)
     
-    async def _monitor_path(self, path: int) -> None:
-        """Monitor a single path for tool changes"""
-        state = self.path_states[path]
+
+    async def _poll_all_paths_loop(self) -> None:
+        """Poll all monitored paths in a single loop (legacy-compatible)"""
         poll_interval_s = self.poll_interval_ms / 1000.0
-        
-        logger.info(f"[{self.machine_id}] Starting path {path} monitor (poll interval: {self.poll_interval_ms}ms)")
-        
+        logger.info(f"[{self.machine_id}] Starting unified path monitor (poll interval: {self.poll_interval_ms}ms)")
+        first_connect = True
         while self._running:
             try:
                 # Wait for connection
                 if not self.fanuc_client.is_connected:
                     await asyncio.sleep(0.5)
                     continue
-                
-                # Read tool
-                tool_data = await self.fanuc_client.read_tool(path)
-                
-                if tool_data is None:
-                    # Read failed
-                    await self._handle_read_error(state, "Failed to read tool")
-                    await asyncio.sleep(poll_interval_s)
-                    continue
-                
-                # Read successful - clear error state
-                if state.status == "error":
-                    state.status = "ok"
-                    state.error_message = None
-                    logger.info(f"[{self.machine_id}] Path {path} recovered from error")
-                
-                # Check for tool change using debouncing
-                await self._process_tool_read(state, tool_data.tool_number)
-                
+
+                # After first connect, wait 1s to ensure CNC is ready for path ops
+                if first_connect:
+                    await asyncio.sleep(1.0)
+                    first_connect = False
+
+                # Read all tools in one go (serial FOCAS access)
+                tool_data_dict = await self.fanuc_client.read_tools()
+                for path in self.monitored_paths:
+                    state = self.path_states[path]
+                    tool_data = tool_data_dict.get(path)
+                    if tool_data is None:
+                        await self._handle_read_error(state, "Failed to read tool")
+                        continue
+
+                    # Read successful - clear error state
+                    if state.status == "error":
+                        state.status = "ok"
+                        state.error_message = None
+                        logger.info(f"[{self.machine_id}] Path {path} recovered from error")
+
+                    # Check for tool change using debouncing
+                    await self._process_tool_read(state, tool_data.tool_number)
+
                 # Wait for next poll
                 await asyncio.sleep(poll_interval_s)
-                
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"[{self.machine_id}] Path {path} monitor error: {e}")
+                logger.error(f"[{self.machine_id}] Unified path monitor error: {e}")
                 await asyncio.sleep(poll_interval_s)
-        
-        logger.info(f"[{self.machine_id}] Path {path} monitor stopped")
+        logger.info(f"[{self.machine_id}] Unified path monitor stopped")
     
     async def _process_tool_read(self, state: PathState, tool_number: int) -> None:
         """

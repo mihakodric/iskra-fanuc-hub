@@ -22,17 +22,17 @@ class MachineConfig:
     ip: str
     port: int = 8193
     poll_interval_ms: Optional[int] = None
-    monitored_paths: List[PathConfig] = field(default_factory=list)
-    
+    monitored_paths: List[PathConfig] = field(default_factory=lambda: [PathConfig(path=1), PathConfig(path=2)])
+
     def __post_init__(self):
-        """Validate machine config"""
+        """Validate machine config and ensure both paths are monitored by default."""
         if not self.machine_id:
             raise ValueError("machine_id is required")
         if not self.ip:
             raise ValueError("ip is required")
+        # If monitored_paths is missing or empty, default to both paths
         if not self.monitored_paths:
-            raise ValueError("monitored_paths array is required")
-        
+            self.monitored_paths = [PathConfig(path=1), PathConfig(path=2)]
         # Convert path dictionaries to PathConfig objects if needed
         if self.monitored_paths and isinstance(self.monitored_paths[0], dict):
             self.monitored_paths = [
@@ -177,12 +177,14 @@ def load_config(config_path: str = "config.yaml") -> Config:
         
         machines = []
         for machine_data in machines_data:
+            # If monitored_paths is missing, default to both paths
+            monitored_paths = machine_data.get('monitored_paths', None)
             machine = MachineConfig(
                 machine_id=machine_data['machine_id'],
                 ip=machine_data['ip'],
                 port=machine_data.get('port', 8193),
                 poll_interval_ms=machine_data.get('poll_interval_ms'),
-                monitored_paths=machine_data['monitored_paths']
+                monitored_paths=monitored_paths
             )
             machines.append(machine)
         

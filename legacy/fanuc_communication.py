@@ -57,7 +57,7 @@ class FanucConnection:
         # Initialize FOCAS library if in production mode
         if Config.is_production():
             try:
-                self.focas = ctypes.cdll.LoadLibrary("libfwlib32.so")
+                self.focas = ctypes.cdll.LoadLibrary("/usr/local/lib/libfwlib32.so")
                 self._setup_focas_functions()
                 ret = self.focas.cnc_startupprocess(0, b"focas.log")
                 if ret != 0:
@@ -186,10 +186,20 @@ class FanucConnection:
             return None
         
         try:
-            # Set path
-            ret = self.focas.cnc_setpath(self.libh, path)
-            if ret != 0:
+            # Set path with retry on EW_REJECT (-8)
+            max_retries = 3
+            for attempt in range(max_retries):
+                ret = self.focas.cnc_setpath(self.libh, path)
+                if ret == 0:
+                    break
+                if ret == -8:
+                    logger.warning(f"Set path {path} rejected (EW_REJECT), retrying ({attempt+1}/{max_retries})...")
+                    time.sleep(0.5)
+                    continue
                 logger.error(f"Failed to set path {path}: {ret}")
+                return None
+            else:
+                logger.error(f"Failed to set path {path} after {max_retries} retries: {ret}")
                 return None
             
             # Read executing program

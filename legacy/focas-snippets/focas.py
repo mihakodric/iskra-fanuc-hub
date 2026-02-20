@@ -5,7 +5,7 @@ import ctypes
 from pathlib import Path
 
 
-libpath =  "libfwlib32.so"
+libpath =  "/usr/local/lib/libfwlib32.so" # "libfwlib32.so"
 focas = ctypes.cdll.LoadLibrary(libpath)
 focas.cnc_startupprocess.restype = ctypes.c_short
 focas.cnc_exitprocess.restype = ctypes.c_short

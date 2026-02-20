@@ -1,45 +1,49 @@
-"""Production FANUC client using FOCAS library via ctypes"""
+"""Production FANUC client using legacy FanucConnection (no direct FOCAS access)"""
 
 import asyncio
 import ctypes
+from ctypes import c_short, c_ushort
 import time
 import logging
 from typing import Optional
 from pathlib import Path
 
+
 from .fanuc_client import FanucClient, ToolData, ConnectionState, FanucError
+
+# Inject legacy/ into sys.path for direct import
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'legacy')))
+from fanuc_communication import FanucConnection
+from config import Config as LegacyConfig
 
 logger = logging.getLogger(__name__)
 
 
-# FOCAS structures (from legacy code)
-class ODBST_struct(ctypes.Structure):
-    """CNC status information structure"""
-    _fields_ = [
-        ("hdck", ctypes.c_short),
-        ("tmmode", ctypes.c_short),
-        ("aut", ctypes.c_short),      # 1 auto, 5 jog
-        ("run", ctypes.c_short),      # 0 reset, 3 run, 2 stop
-        ("motion", ctypes.c_short),
-        ("mstb", ctypes.c_short),
-        ("emergency", ctypes.c_short),
-        ("alarm", ctypes.c_short),
-        ("edit", ctypes.c_short)
-    ]
-
-
-class ODBM_struct(ctypes.Structure):
-    """Macro variable structure"""
-    _fields_ = [
-        ("datano", ctypes.c_ushort),
-        ("mcr_val", ctypes.c_int32),
-        ("dec_val", ctypes.c_long)
-    ]
 
 
 class FanucClientImpl(FanucClient):
-    """Production FANUC client using FOCAS library"""
-    
+
+    async def read_tools(self) -> dict:
+        # Read both paths in sequence, legacy style
+        results = {}
+        for path in (1, 2):
+            results[path] = await self.read_tool(path)
+        return results
+
+    async def connect(self) -> bool:
+        async with self._lock:
+            result = await asyncio.get_event_loop().run_in_executor(None, self._conn.connect)
+            self._connected = result
+            self._state = ConnectionState.CONNECTED if result else ConnectionState.ERROR
+            return result
+
+    async def disconnect(self) -> None:
+        async with self._lock:
+            await asyncio.get_event_loop().run_in_executor(None, self._conn.disconnect)
+            self._connected = False
+            self._state = ConnectionState.DISCONNECTED
+
     def __init__(
         self,
         machine_id: str,
@@ -47,6 +51,7 @@ class FanucClientImpl(FanucClient):
         port: int,
         library_path: str,
         macro_address: int,
+        macro_length: int = 10,
         timeout: int = 10
     ):
         self.machine_id = machine_id
@@ -54,168 +59,80 @@ class FanucClientImpl(FanucClient):
         self.port = port
         self.library_path = library_path
         self.macro_address = macro_address
+        self.macro_length = macro_length
         self.timeout = timeout
-        
-        self.libh = ctypes.c_ushort(0)
+        self._lock = asyncio.Lock()
+        self._conn = FanucConnection(ip_address=ip, port=port, timeout=timeout)
+        # Patch the legacy FanucConnection to use correct macro address/length
+        if hasattr(self._conn, 'macro_address'):
+            self._conn.macro_address = macro_address
+        if hasattr(self._conn, 'macro_length'):
+            self._conn.macro_length = macro_length
         self._connected = False
         self._state = ConnectionState.DISCONNECTED
-        self._lock = asyncio.Lock()
-        
-        # Load FOCAS library
-        self.focas = None
-        self._load_library()
-    
-    def _load_library(self) -> None:
-        """Load FOCAS library"""
-        try:
-            self.focas = ctypes.cdll.LoadLibrary(self.library_path)
-            self._setup_function_signatures()
-            
-            # Startup FOCAS process
-            ret = self.focas.cnc_startupprocess(0, b"focas.log")
-            if ret != 0:
-                logger.error(f"[{self.machine_id}] Failed to startup FOCAS process: {ret}")
-            else:
-                logger.info(f"[{self.machine_id}] FOCAS library loaded from {self.library_path}")
-                
-        except Exception as e:
-            logger.error(f"[{self.machine_id}] Failed to load FOCAS library: {e}")
-            self.focas = None
-    
-    def _setup_function_signatures(self) -> None:
-        """Setup FOCAS function signatures"""
-        self.focas.cnc_startupprocess.restype = ctypes.c_short
-        self.focas.cnc_exitprocess.restype = ctypes.c_short
-        self.focas.cnc_allclibhndl3.restype = ctypes.c_short
-        self.focas.cnc_freelibhndl.restype = ctypes.c_short
-        self.focas.cnc_statinfo.restype = ctypes.c_short
-        self.focas.cnc_setpath.restype = ctypes.c_short
-        self.focas.cnc_rdmacro.restype = ctypes.c_short
-    
-    async def connect(self) -> bool:
-        """Establish connection to FANUC CNC"""
-        if not self.focas:
-            logger.error(f"[{self.machine_id}] FOCAS library not available")
-            return False
-        
+
+    async def read_tool(self, path: int):
+        """Return tool info for a single path using legacy FanucConnection."""
         async with self._lock:
-            self._state = ConnectionState.CONNECTING
-            
-            try:
-                # Run blocking FOCAS call in executor
-                loop = asyncio.get_event_loop()
-                ret = await loop.run_in_executor(
-                    None,
-                    self._connect_sync
+            def _read():
+                info = self._conn.read_tool_info(path)
+                if not info:
+                    return None
+                return ToolData(
+                    tool_number=int(round(info['tool_number'])),
+                    path=path,
+                    timestamp_ms=int(time.time() * 1000)
                 )
-                
-                if ret == 0:
-                    self._connected = True
-                    self._state = ConnectionState.CONNECTED
-                    logger.info(f"[{self.machine_id}] Connected to {self.ip}:{self.port}")
-                    return True
-                else:
-                    self._state = ConnectionState.ERROR
-                    logger.error(f"[{self.machine_id}] Connection failed: FOCAS error {ret}")
-                    return False
-                    
-            except Exception as e:
-                self._state = ConnectionState.ERROR
-                logger.error(f"[{self.machine_id}] Connection exception: {e}")
-                return False
-    
-    def _connect_sync(self) -> int:
-        """Synchronous connection (called in executor)"""
-        ret = self.focas.cnc_allclibhndl3(
-            self.ip.encode(),
-            self.port,
-            self.timeout,
-            ctypes.byref(self.libh)
-        )
-        return ret
-    
-    async def disconnect(self) -> None:
-        """Disconnect from FANUC CNC"""
-        if not self._connected:
-            return
-        
-        async with self._lock:
-            try:
-                if self.focas and self.libh:
-                    loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(
-                        None,
-                        self.focas.cnc_freelibhndl,
-                        self.libh
-                    )
-                    logger.info(f"[{self.machine_id}] Disconnected from {self.ip}")
-            except Exception as e:
-                logger.error(f"[{self.machine_id}] Disconnect exception: {e}")
-            finally:
-                self._connected = False
-                self._state = ConnectionState.DISCONNECTED
-                self.libh = ctypes.c_ushort(0)
-    
-    async def read_tool(self, path: int) -> Optional[ToolData]:
-        """Read current tool number for specified path"""
-        if not self._connected or not self.focas:
-            return None
-        
-        async with self._lock:
-            try:
-                loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
-                    None,
-                    self._read_tool_sync,
-                    path
-                )
-                return result
-            except Exception as e:
-                logger.error(f"[{self.machine_id}] Read tool exception for path {path}: {e}")
-                return None
-    
+            return await asyncio.get_event_loop().run_in_executor(None, _read)
+
     def _read_tool_sync(self, path: int) -> Optional[ToolData]:
-        """Synchronous tool read (called in executor)"""
-        # Set path
-        ret = self.focas.cnc_setpath(self.libh, path)
+        # This matches the legacy basic_tool_reader/fanuc_communication.py logic exactly
+        # Set path before reading (required for multi-path machines, harmless for single-path)
+        if self._has_setpath:
+            ret = self.focas.cnc_setpath(self.libh, path)
+            if ret != 0:
+                logger.error(f"[{self.machine_id}] Failed to set path {path}: FOCAS error {ret}")
+                return None
+
+        # Use the same structure allocation as legacy
+        odbm1 = ODBM_struct()
+        odbexeprg1 = type('ODBEXEPRG_struct', (ctypes.Structure,), {
+            '_fields_': [
+                ("name", ctypes.c_char * 36),
+                ("o_num", ctypes.c_uint32)
+            ]
+        })()
+
+        # Read executing program (legacy always does this after setpath)
+        ret = self.focas.cnc_exeprgname(self.libh, ctypes.byref(odbexeprg1))
         if ret != 0:
-            logger.error(f"[{self.machine_id}] Failed to set path {path}: FOCAS error {ret}")
-            return None
-        
+            logger.error(f"[{self.machine_id}] Failed to read program name for path {path}: FOCAS error {ret}")
+            # Not fatal, continue to macro read
+
         # Read macro variable
-        odbm = ODBM_struct()
         ret = self.focas.cnc_rdmacro(
             self.libh,
             self.macro_address,
             10,  # macro_length always 10
-            ctypes.byref(odbm)
+            ctypes.byref(odbm1)
         )
-        
         if ret != 0:
             logger.error(f"[{self.machine_id}] Failed to read macro {self.macro_address} for path {path}: FOCAS error {ret}")
             return None
-        
+
         # Convert macro to tool number using legacy algorithm
-        tool_float = self._macro_to_float(odbm)
+        tool_float = self._macro_to_float(odbm1)
         tool_number = int(round(tool_float))
-        
-        logger.debug(f"[{self.machine_id}] Read path {path} tool: {tool_number}")
-        
+        program_number = getattr(odbexeprg1, "o_num", None)
+
+        logger.debug(f"[{self.machine_id}] Read path {path} tool: {tool_number} program: {program_number}")
+
         return ToolData(
             tool_number=tool_number,
             path=path,
             timestamp_ms=int(time.time() * 1000)
         )
     
-    def _macro_to_float(self, macro: ODBM_struct) -> float:
-        """
-        Convert macro structure to float value
-        (From legacy focas.py Macro2Float implementation)
-        """
-        if macro.dec_val:
-            return (macro.mcr_val * 1.0) / (10.0 ** macro.dec_val)
-        else:
-            return float(macro.mcr_val)
     
     @property
     def is_connected(self) -> bool:
