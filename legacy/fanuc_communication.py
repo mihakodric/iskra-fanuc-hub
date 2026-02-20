@@ -186,20 +186,10 @@ class FanucConnection:
             return None
         
         try:
-            # Set path with retry on EW_REJECT (-8)
-            max_retries = 3
-            for attempt in range(max_retries):
-                ret = self.focas.cnc_setpath(self.libh, path)
-                if ret == 0:
-                    break
-                if ret == -8:
-                    logger.warning(f"Set path {path} rejected (EW_REJECT), retrying ({attempt+1}/{max_retries})...")
-                    time.sleep(0.5)
-                    continue
+            # Set path
+            ret = self.focas.cnc_setpath(self.libh, path)
+            if ret != 0:
                 logger.error(f"Failed to set path {path}: {ret}")
-                return None
-            else:
-                logger.error(f"Failed to set path {path} after {max_retries} retries: {ret}")
                 return None
             
             # Read executing program

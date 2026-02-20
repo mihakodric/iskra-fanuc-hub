@@ -137,18 +137,12 @@ class MachineMonitor:
         """Poll all monitored paths in a single loop (legacy-compatible)"""
         poll_interval_s = self.poll_interval_ms / 1000.0
         logger.info(f"[{self.machine_id}] Starting unified path monitor (poll interval: {self.poll_interval_ms}ms)")
-        first_connect = True
         while self._running:
             try:
                 # Wait for connection
                 if not self.fanuc_client.is_connected:
                     await asyncio.sleep(0.5)
                     continue
-
-                # After first connect, wait 1s to ensure CNC is ready for path ops
-                if first_connect:
-                    await asyncio.sleep(1.0)
-                    first_connect = False
 
                 # Read all tools in one go (serial FOCAS access)
                 tool_data_dict = await self.fanuc_client.read_tools()
