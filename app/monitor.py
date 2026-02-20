@@ -229,13 +229,15 @@ class MachineMonitor:
     async def _handle_read_error(self, state: PathState, error_message: str) -> None:
         """Handle read error for a path"""
         if state.status == "ok":
-            # First error - mark as error and publish
+            # First failure for this path — downgrade to WARNING since some
+            # CNC machines simply don't expose all paths (matches the legacy
+            # basic_tool_reader "No data" fallback, not an alarm condition).
             state.status = "error"
             state.error_message = error_message
             state.last_error_publish_time = time.time()
-            
-            logger.error(f"[{self.machine_id}] Path {state.path} error: {error_message}")
-            
+
+            logger.warning(f"[{self.machine_id}] Path {state.path} unavailable: {error_message}")
+
             await self.mqtt_publisher.publish_error(
                 machine_id=self.machine_id,
                 path=state.path,

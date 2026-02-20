@@ -186,30 +186,22 @@ class FanucConnection:
             return None
         
         try:
-            # Path 1 is the FANUC default/active path — calling cnc_setpath(1)
-            # after the machine has switched to path 2 returns EW_REJECT (-8).
-            # Only explicitly switch when targeting path 2 or higher.
-            if path != 1:
-                max_retries = 3
-                for attempt in range(max_retries):
-                    ret = self.focas.cnc_setpath(self.libh, path)
-                    if ret == 0:
-                        break
-                    if ret == -8:
-                        logger.warning(f"Set path {path} rejected (EW_REJECT), retrying ({attempt+1}/{max_retries})...")
-                        time.sleep(0.5)
-                        continue
-                    logger.error(f"Failed to set path {path}: {ret}")
-                    return None
+            # Attempt to set the path. EW_REJECT (-8) means this CNC does not
+            # expose this path in its FOCAS configuration — treat it as "no data"
+            # rather than an error (mirrors basic_tool_reader "No data" output).
+            ret = self.focas.cnc_setpath(self.libh, path)
+            if ret != 0:
+                if ret == -8:
+                    logger.debug(f"Path {path} not available on this CNC (EW_REJECT) — skipping")
                 else:
-                    logger.error(f"Failed to set path {path} after {max_retries} retries: {ret}")
-                    return None
+                    logger.warning(f"cnc_setpath({path}) returned {ret} — skipping")
+                return None
 
-            # Read executing program (non-fatal if unavailable)
+            # Read executing program (non-fatal)
             odbexeprg = self.odbexeprg1 if path == 1 else self.odbexeprg2
             ret = self.focas.cnc_exeprgname(self.libh, ctypes.byref(odbexeprg))
             if ret != 0:
-                logger.warning(f"Could not read program name for path {path}: {ret} (continuing)")
+                logger.debug(f"cnc_exeprgname path {path}: {ret} (continuing)")
                 odbexeprg.o_num = 0
 
             # Read macro variable
@@ -221,25 +213,16 @@ class FanucConnection:
                 ctypes.byref(odbm)
             )
             if ret != 0:
-                logger.error(f"Failed to read macro for path {path}: {ret}")
+                logger.warning(f"cnc_rdmacro path {path}: {ret}")
                 return None
 
-            result = {
+            return {
                 'tool_number': self._macro_to_float(odbm),
                 'program_number': odbexeprg.o_num,
                 'macro_value': self._macro_to_float(odbm)
             }
 
-            # After reading a non-default path, restore to path 1 so the
-            # next read_tool_info(1) call finds the machine already on path 1
-            # (avoids EW_REJECT on cnc_setpath(1) in continuous polling).
-            if path != 1:
-                ret_restore = self.focas.cnc_setpath(self.libh, 1)
-                if ret_restore != 0:
-                    logger.warning(f"Could not restore to path 1 after reading path {path}: {ret_restore}")
 
-            return result
-            
         except Exception as e:
             logger.error(f"Exception reading tool info for path {path}: {e}")
             return None
