@@ -28,6 +28,16 @@ monitoring:
   heartbeat_interval_s: 2              # Heartbeat publish interval (seconds)
   reconnect_min_delay_s: 0.5           # Minimum reconnection delay (seconds)
   reconnect_max_delay_s: 30.0          # Maximum reconnection delay (seconds)
+  
+  # Circuit breaker: Force reconnection after N consecutive all-path failures
+  # Example: 100 failures × 100ms poll = 10 seconds of continuous failures
+  # Suggested values: 50 (5s), 100 (10s), 300 (30s)
+  max_consecutive_all_path_failures: 100
+  
+  # Periodic health reconnect: Force reconnection after N hours of uptime
+  # Prevents connection state degradation over long periods
+  # Range: 1-168 hours (1 hour to 1 week)
+  max_uptime_hours: 24                 # Force reconnect every 24 hours
 
 # Monitored CNC machines
 machines:

@@ -16,7 +16,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
-from .fanuc_client import FanucClient, ToolData, ConnectionState, FanucError
+from .fanuc_client import FanucClient, ToolReadResult, ConnectionState
 
 # Inject legacy/ into sys.path so we can import FanucConnection directly
 import sys
@@ -94,22 +94,37 @@ class FanucClientImpl(FanucClient):
     #   path2_info = connection.read_tool_info(2)
     # ------------------------------------------------------------------
 
-    async def read_tool(self, path: int) -> Optional[ToolData]:
+    async def read_tool(self, path: int) -> ToolReadResult:
         """Read tool info for one path on the dedicated FOCAS thread."""
         def _read():
-            info = self._conn.read_tool_info(path)
-            if not info:
-                return None
+            info, error_code = self._conn.read_tool_info_with_error(path)
+            timestamp_ms = int(time.time() * 1000)
+            
+            if not info or error_code != 0:
+                # Read failed - return error code
+                if error_code != 0:
+                    logger.debug(
+                        f"[{self.machine_id}] Path {path} read failed with FOCAS error {error_code}"
+                    )
+                return ToolReadResult(
+                    tool=None,
+                    error_code=error_code,
+                    path=path,
+                    timestamp_ms=timestamp_ms
+                )
+            
+            # Success
             tool_number = int(round(info['tool_number']))
             logger.debug(
                 f"[{self.machine_id}] Path {path} → T{tool_number} "
                 f"(prog={info.get('program_number', 'N/A')} "
                 f"macro={info.get('macro_value', 'N/A')})"
             )
-            return ToolData(
-                tool_number=tool_number,
+            return ToolReadResult(
+                tool=tool_number,
+                error_code=0,
                 path=path,
-                timestamp_ms=int(time.time() * 1000),
+                timestamp_ms=timestamp_ms
             )
 
         return await self._run(_read)

@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 from enum import Enum
 
 
@@ -15,8 +15,17 @@ class ConnectionState(Enum):
 
 
 @dataclass
+class ToolReadResult:
+    """Result of a tool read operation including error codes"""
+    tool: Optional[int]        # Tool number if successful, None on error
+    error_code: Optional[int]  # FOCAS error code (0 = success, non-zero = error)
+    path: int                  # CNC path number
+    timestamp_ms: int          # Unix timestamp in milliseconds
+
+
+@dataclass
 class ToolData:
-    """Tool information from CNC"""
+    """Tool information from CNC (legacy compatibility)"""
     tool_number: int
     path: int
     timestamp_ms: int
@@ -49,7 +58,7 @@ class FanucClient(ABC):
         pass
     
     @abstractmethod
-    async def read_tool(self, path: int) -> Optional[ToolData]:
+    async def read_tool(self, path: int) -> ToolReadResult:
         """
         Read current tool number for specified path
         
@@ -57,7 +66,19 @@ class FanucClient(ABC):
             path: CNC path number (1 or 2)
             
         Returns:
-            ToolData if successful, None on error
+            ToolReadResult with tool number and error code
+            - tool: int if successful, None on error
+            - error_code: 0 on success, FOCAS error code on failure
+        """
+        pass
+    
+    @abstractmethod
+    async def read_tools(self) -> Dict[int, ToolReadResult]:
+        """
+        Read tool numbers for all configured paths
+        
+        Returns:
+            Dictionary mapping path number to ToolReadResult
         """
         pass
     

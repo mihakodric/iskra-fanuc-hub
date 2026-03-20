@@ -82,6 +82,25 @@ class MonitoringConfig:
     heartbeat_interval_s: int = 2
     reconnect_min_delay_s: float = 0.5
     reconnect_max_delay_s: float = 30.0
+    max_consecutive_all_path_failures: int = 100  # Circuit breaker threshold
+    max_uptime_hours: int = 24  # Force reconnect after this many hours
+    
+    def __post_init__(self):
+        """Validate monitoring config"""
+        if self.max_consecutive_all_path_failures <= 0:
+            raise ValueError("max_consecutive_all_path_failures must be > 0")
+        if self.max_uptime_hours < 1 or self.max_uptime_hours > 168:
+            raise ValueError("max_uptime_hours must be between 1 and 168 (1 week)")
+        if self.max_consecutive_all_path_failures < 20:
+            logger.warning(
+                f"max_consecutive_all_path_failures={self.max_consecutive_all_path_failures} "
+                "is very low and may cause excessive reconnections"
+            )
+        if self.max_consecutive_all_path_failures > 1000:
+            logger.warning(
+                f"max_consecutive_all_path_failures={self.max_consecutive_all_path_failures} "
+                "is very high and may delay recovery from stuck states"
+            )
 
 
 @dataclass

@@ -4,9 +4,9 @@ import asyncio
 import random
 import time
 import logging
-from typing import Optional
+from typing import Dict
 
-from .fanuc_client import FanucClient, ToolData, ConnectionState
+from .fanuc_client import FanucClient, ToolReadResult, ConnectionState
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ class FakeFanucClient(FanucClient):
         # Simulation state
         self._current_tools = {1: 1, 2: 1}  # Path -> tool number
         self._fail_rate = 0.0  # Probability of simulated failure
+        self._simulated_error_code = -16  # Error code to return on simulated failures
         self._connection_fail_count = 0
         
     async def connect(self) -> bool:
@@ -55,19 +56,31 @@ class FakeFanucClient(FanucClient):
             self._connected = False
             self._state = ConnectionState.DISCONNECTED
     
-    async def read_tool(self, path: int) -> Optional[ToolData]:
+    async def read_tool(self, path: int) -> ToolReadResult:
         """Simulate reading tool number"""
+        timestamp_ms = int(time.time() * 1000)
+        
         if not self._connected:
             logger.error(f"[{self.machine_id}] Cannot read tool - not connected")
-            return None
+            return ToolReadResult(
+                tool=None,
+                error_code=-1,  # Not connected
+                path=path,
+                timestamp_ms=timestamp_ms
+            )
         
         # Simulate read delay
         await asyncio.sleep(0.01)
         
         # Simulate occasional read failures
         if random.random() < self._fail_rate:
-            logger.error(f"[{self.machine_id}] Simulated read failure for path {path}")
-            return None
+            logger.error(f"[{self.machine_id}] Simulated read failure for path {path} (error code {self._simulated_error_code})")
+            return ToolReadResult(
+                tool=None,
+                error_code=self._simulated_error_code,
+                path=path,
+                timestamp_ms=timestamp_ms
+            )
         
         # Occasionally change tool (5% chance per read)
         if random.random() < 0.05:
@@ -77,11 +90,19 @@ class FakeFanucClient(FanucClient):
             self._current_tools[path] = new_tool
             logger.debug(f"[{self.machine_id}] Simulated tool change path {path}: {old_tool} -> {new_tool}")
         
-        return ToolData(
-            tool_number=self._current_tools[path],
+        return ToolReadResult(
+            tool=self._current_tools[path],
+            error_code=0,  # Success
             path=path,
-            timestamp_ms=int(time.time() * 1000)
+            timestamp_ms=timestamp_ms
         )
+    
+    async def read_tools(self) -> Dict[int, ToolReadResult]:
+        """Read both paths"""
+        results = {}
+        for path in (1, 2):
+            results[path] = await self.read_tool(path)
+        return results
     
     @property
     def is_connected(self) -> bool:
@@ -97,6 +118,11 @@ class FakeFanucClient(FanucClient):
         """Set simulated failure rate for testing (0.0 to 1.0)"""
         self._fail_rate = max(0.0, min(1.0, rate))
         logger.info(f"[{self.machine_id}] Set simulated failure rate to {self._fail_rate:.1%}")
+    
+    def set_error_code(self, error_code: int) -> None:
+        """Set the error code to return on simulated failures (default: -16)"""
+        self._simulated_error_code = error_code
+        logger.info(f"[{self.machine_id}] Set simulated error code to {error_code}")
     
     def set_tool(self, path: int, tool_number: int) -> None:
         """Manually set tool number for testing"""

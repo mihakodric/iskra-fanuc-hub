@@ -167,7 +167,19 @@ class FanucConnection:
             return None
     
     def read_tool_info(self, path: int = 1) -> Optional[Dict[str, Any]]:
-        """Read tool information from specified path"""
+        """Read tool information from specified path (legacy interface)"""
+        result, _ = self.read_tool_info_with_error(path)
+        return result
+    
+    def read_tool_info_with_error(self, path: int = 1) -> tuple[Optional[Dict[str, Any]], int]:
+        """
+        Read tool information from specified path with error code
+        
+        Returns:
+            tuple: (tool_info_dict, error_code)
+                - tool_info_dict: Dict with tool_number, program_number, macro_value (None on error)
+                - error_code: 0 on success, FOCAS error code on failure
+        """
         # In development mode, always return simulated data
         if Config.is_development():
             import random
@@ -175,15 +187,15 @@ class FanucConnection:
                 'tool_number': random.randint(1, 10),
                 'program_number': random.randint(1000, 9999),
                 'macro_value': random.uniform(0.1, 5.0)
-            }
+            }, 0
         
         if not self.connected:
-            return None
+            return None, -1  # Not connected error
         
         # Only attempt real FOCAS calls in production mode
         if not self.focas:
             logger.error("FOCAS library not available")
-            return None
+            return None, -1
         
         try:
             # Attempt to set the path. EW_REJECT (-8) means this CNC does not
@@ -195,7 +207,7 @@ class FanucConnection:
                     logger.debug(f"Path {path} not available on this CNC (EW_REJECT) — skipping")
                 else:
                     logger.warning(f"cnc_setpath({path}) returned {ret} — skipping")
-                return None
+                return None, ret
 
             # Read executing program (non-fatal)
             odbexeprg = self.odbexeprg1 if path == 1 else self.odbexeprg2
@@ -214,18 +226,18 @@ class FanucConnection:
             )
             if ret != 0:
                 logger.warning(f"cnc_rdmacro path {path}: {ret}")
-                return None
+                return None, ret
 
             return {
                 'tool_number': self._macro_to_float(odbm),
                 'program_number': odbexeprg.o_num,
                 'macro_value': self._macro_to_float(odbm)
-            }
+            }, 0  # Success
 
 
         except Exception as e:
             logger.error(f"Exception reading tool info for path {path}: {e}")
-            return None
+            return None, -1  # Generic error code
     
     def _macro_to_float(self, macro: ODBM_struct) -> float:
         """Convert macro structure to float value"""

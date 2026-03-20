@@ -184,7 +184,10 @@ class MQTTPublisher:
         ip: str,
         connected: bool,
         path_status: Dict[int, str],
-        path_errors: Dict[int, str]
+        path_errors: Dict[int, str],
+        consecutive_failures: int = 0,
+        uptime_hours: Optional[float] = None,
+        last_successful_read_time: Optional[float] = None
     ) -> bool:
         """
         Publish heartbeat/state message
@@ -195,6 +198,9 @@ class MQTTPublisher:
             connected: Whether connected to CNC
             path_status: Dict mapping path number to status ("ok" or "error")
             path_errors: Dict mapping path number to error message (if any)
+            consecutive_failures: Circuit breaker consecutive failure count
+            uptime_hours: Connection uptime in hours (None if not connected)
+            last_successful_read_time: Unix timestamp of last successful read (None if never)
             
         Returns:
             True if published successfully
@@ -205,9 +211,18 @@ class MQTTPublisher:
             "machine_id": machine_id,
             "ip": ip,
             "connected": connected,
+            "consecutive_all_path_failures": consecutive_failures,
             "ts_unix_ms": int(time.time() * 1000),
             "source": self.service_ip
         }
+        
+        # Add uptime and last successful read time if available
+        if uptime_hours is not None:
+            payload["uptime_hours"] = round(uptime_hours, 2)
+        
+        if last_successful_read_time is not None:
+            seconds_since_success = time.time() - last_successful_read_time
+            payload["seconds_since_last_success"] = round(seconds_since_success, 1)
         
         # Add path status
         for path, status in path_status.items():

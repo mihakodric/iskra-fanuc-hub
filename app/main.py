@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import logging.handlers
 import signal
 import sys
 from pathlib import Path
@@ -13,13 +14,18 @@ from .monitor import MachineMonitor
 from .fanuc_client_impl import FanucClientImpl
 from .fake_fanuc_client import FakeFanucClient
 
-# Setup logging
+# Setup logging with rotation to prevent unbounded log file growth
+# Max 10 MB per file, keep 5 backup files (50 MB total)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('fanuc-monitor.log')
+        logging.handlers.RotatingFileHandler(
+            'fanuc-monitor.log',
+            maxBytes=10*1024*1024,  # 10 MB per file
+            backupCount=5            # Keep 5 old files (total 50 MB max)
+        )
     ]
 )
 
@@ -103,7 +109,9 @@ class MonitorService:
                 debounce_consecutive_reads=self.config.monitoring.debounce_consecutive_reads,
                 heartbeat_interval_s=self.config.monitoring.heartbeat_interval_s,
                 reconnect_min_delay_s=self.config.monitoring.reconnect_min_delay_s,
-                reconnect_max_delay_s=self.config.monitoring.reconnect_max_delay_s
+                reconnect_max_delay_s=self.config.monitoring.reconnect_max_delay_s,
+                max_consecutive_all_path_failures=self.config.monitoring.max_consecutive_all_path_failures,
+                max_uptime_hours=self.config.monitoring.max_uptime_hours
             )
             
             self.monitors.append(monitor)
